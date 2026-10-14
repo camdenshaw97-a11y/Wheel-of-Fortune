@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game board</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23ffcc33'/%3E%3Cpath d='M32 32 L32 2 A30 30 0 0 1 58 17 Z' fill='%23e8352b'/%3E%3Cpath d='M32 32 L58 17 A30 30 0 0 1 58 47 Z' fill='%231f8be0'/%3E%3Cpath d='M32 32 L58 47 A30 30 0 0 1 32 62 Z' fill='%233bb54a'/%3E%3Cpath d='M32 32 L32 62 A30 30 0 0 1 6 47 Z' fill='%238a3fd1'/%3E%3Cpath d='M32 32 L6 47 A30 30 0 0 1 6 17 Z' fill='%23f28a1d'/%3E%3Cpath d='M32 32 L6 17 A30 30 0 0 1 32 2 Z' fill='%23ef4f9a'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #07021a; overflow: hidden; font-family: var(--text); color: #fff; }
+  #stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden; overflow: clip; transform: translate(-50%, -50%) scale(var(--s, 1)); transform-origin: center; }
+  #bg { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse 90% 70% at 50% 30%, #4b20b8 0%, #2a0f7a 40%, #13063f 75%, #07021a 100%); }
+  #bg::before { content: ""; position: absolute; left: -10%; right: -10%; top: -20%; height: 140%; background: repeating-conic-gradient(from 0deg at 50% 32%, #ffffff09 0deg 7.5deg, transparent 7.5deg 15deg); animation: rays 90s linear infinite; }
+  @keyframes rays { to { transform: rotate(360deg); } }
+  #bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 40% at 50% 100%, #ff7ad455, transparent 70%); }
+  .screen { position: absolute; inset: 0; display: none; }
+  .screen.on { display: block; animation: fadeIn .5s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; } }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(30px); } }
+  @keyframes popIn { from { opacity: 0; transform: scale(.6); } }
+  .box { background: linear-gradient(#3b1aa3, #26107a); border-radius: 22px; box-shadow: 0 0 0 4px #ffcc33, 0 0 0 9px #120538, 0 24px 50px #000a, inset 0 2px 0 #ffffff33; }
+  .logo { display: inline-flex; align-items: center; gap: 34px; }
+  .logo .whl { width: 190px; height: 190px; animation: logoSpin 14s linear infinite; filter: drop-shadow(0 10px 20px #000a); }
+  @keyframes logoSpin { to { transform: rotate(360deg); } }
+  .logo b { font: 400 150px/1 var(--display); letter-spacing: .04em; color: #fff; text-shadow: 0 6px 0 #c98a06, 0 10px 0 #6b3d00, 0 14px 30px #000c; -webkit-text-stroke: 3px #3a1700; paint-order: stroke fill; }
+  .logo.small .whl { width: 76px; height: 76px; }
+  .logo.small { gap: 16px; }
+  .logo.small b { font-size: 64px; text-shadow: 0 3px 0 #c98a06, 0 5px 0 #6b3d00; -webkit-text-stroke: 2px #3a1700; }
+  .btn { font: 400 44px var(--display); letter-spacing: .04em; color: #2a1800; cursor: pointer; background: linear-gradient(#ffe27a, #f2b01e); border: 0; border-radius: 999px; padding: 22px 64px 18px; --d: #8a5200; box-shadow: 0 8px 0 var(--d), 0 20px 40px #0008; transition: transform .09s ease-out, box-shadow .12s ease-out, filter .2s, opacity .25s; }
+  .btn:hover { filter: brightness(1.07); }
+  .btn:active, .btn[data-fx-press] { transform: translateY(6px); box-shadow: 0 2px 0 var(--d), 0 8px 16px #0008; }
+  .btn.alt { --d: #2a0d6e; background: linear-gradient(#8a5cff, #5a2fd6); color: #fff; }
+  .btn.busy { pointer-events: none; opacity: .75; animation: breathe 1.1s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .5; } }
+  .chip { font: 700 22px var(--text); color: #e6dcff; background: #2a1180cc; border: 2px solid #120538; border-radius: 999px; padding: 10px 22px; cursor: pointer; transition: border-color .2s, color .2s, transform .1s ease-out; }
+  .chip:active, .chip[data-fx-press] { transform: scale(.94); }
+  .chip:hover { border-color: var(--gold); color: #fff; }
+
+  /* ---- start ---- */
+  #start .mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 56px; }
+  #start .logo { animation: badgeIn .7s cubic-bezier(.3, 1.35, .5, 1) backwards; }
+  @keyframes badgeIn { from { opacity: 0; transform: rotate(-12deg) scale(.5); } }
+  #start p, #start .row { animation: riseIn .5s ease-out .25s backwards; }
+  #start p { font-size: 32px; color: #e6dcff; margin: 0; text-align: center; line-height: 1.4; }
+  #ver { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center; font: 700 20px var(--text); color: #a490e0; letter-spacing: .06em; }
+  #start .row { display: flex; gap: 30px; }
+  #startMsg { color: #ffb4ae !important; min-height: 44px; }
+  #startMsg.calm { color: #e6dcff !important; animation: fadeIn .4s; }
+
+  /* ---- lobby ---- */
+  #lobby .head { position: absolute; left: 0; right: 0; top: 34px; text-align: center; }
+  #lobby .join { position: absolute; left: 70px; top: 200px; width: 760px; height: 720px; padding: 30px 44px; box-sizing: border-box; text-align: center; animation: riseIn .5s cubic-bezier(.2, .9, .3, 1) backwards; }
+  #lobby .join h3 { font: 400 46px var(--display); color: var(--gold); margin: 0 0 6px; letter-spacing: .04em; }
+  #lobby .join .qrbig { display: block; width: 340px; height: 340px; margin: 8px auto 16px; padding: 14px; box-sizing: border-box; background: #fff; border-radius: 14px; box-shadow: 0 0 0 5px #120538, 0 14px 30px #0008; }
+  #lobby .join .or { font: 600 28px var(--text); color: #e6dcff; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #lobby .join .or b { color: #fff; }
+  #lobby .code { display: flex; gap: 12px; justify-content: center; margin: 14px 0 0; }
+  #lobby .code span { animation: tileIn .45s cubic-bezier(.3, 1.3, .5, 1) .3s backwards; width: 108px; height: 128px; display: flex; align-items: center; justify-content: center; font: 800 96px/1 var(--letter); color: #111; background: #fff; border-radius: 6px; box-shadow: 0 0 0 5px var(--frame), 0 0 0 8px #3150d8, inset 0 -6px 0 #0001; }
+  #lobby .code span:nth-child(2) { animation-delay: .38s; } #lobby .code span:nth-child(3) { animation-delay: .46s; } #lobby .code span:nth-child(4) { animation-delay: .54s; }
+  @keyframes tileIn { from { opacity: 0; transform: rotateY(90deg); } }
+  #lobby .pods { position: absolute; left: 890px; top: 200px; width: 960px; height: 560px; padding: 26px 30px; box-sizing: border-box; animation: riseIn .5s cubic-bezier(.2, .9, .3, 1) .08s backwards; }
+  #lobby .pods h4 { font: 400 46px/1.1 var(--display); margin: 0 0 14px; text-align: center; color: var(--gold); }
+  #lobby .pods ul { margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 26px; }
+  #lobby .pods li { list-style: none; font: 700 34px var(--text); padding: 8px 18px; border-radius: 999px; background: #ffffff12; display: flex; gap: 14px; align-items: center; transition: opacity .3s; transform-origin: 0 50%; animation: nameIn .5s cubic-bezier(.3, 1.5, .5, 1) backwards; white-space: nowrap; overflow: hidden; }
+  @keyframes nameIn { from { opacity: 0; transform: translateX(-40px) scale(.7); } 60% { color: var(--gold); } }
+  #lobby .pods li i { width: 26px; height: 26px; border-radius: 50%; flex: none; box-shadow: 0 0 0 3px #fff3; }
+  #lobby .pods li.off { opacity: .45; }
+  #lobby .pods .none { color: #b3a3ee; font-size: 28px; text-align: center; padding-top: 60px; grid-column: 1 / -1; list-style: none; }
+  #lobby .hostline { position: absolute; left: 890px; top: 792px; width: 960px; height: 128px; box-sizing: border-box; padding: 0 34px; display: flex; align-items: center; gap: 22px; font-size: 30px; line-height: 1.3; animation: riseIn .5s cubic-bezier(.2, .9, .3, 1) .16s backwards; }
+  #lobby .hostline b { font: 400 44px var(--display); color: var(--gold); letter-spacing: .04em; flex: none; }
+  #lobby .foot { position: absolute; left: 70px; right: 70px; bottom: 54px; display: flex; align-items: center; gap: 18px; }
+  #lobby .foot .grow { flex: 1; font-size: 25px; color: #d3c6ff; line-height: 1.35; }
+
+  /* ---- game ---- */
+  #roundTag { position: absolute; left: 26px; top: 40px; width: 170px; text-align: center; font: 400 30px/1.05 var(--display); letter-spacing: .06em; color: #e6dcff; text-shadow: 0 3px 0 #000; }
+  #roundTag b { display: block; font-weight: 400; font-size: 66px; color: var(--gold); white-space: nowrap; }
+  #roundTag.long b { font-size: 46px; padding-top: 6px; }
+  #joinTag { position: absolute; right: 30px; top: 34px; width: 160px; display: none; flex-direction: column; align-items: center; gap: 8px; z-index: 18; }
+  #joinTag.on { display: flex; }
+  #joinTag img { display: block; width: 118px; height: 118px; padding: 7px; box-sizing: border-box; background: #fff; border-radius: 10px; box-shadow: 0 0 0 4px #120538, 0 10px 24px #0008; }
+  #joinTag small { display: block; font: 400 20px/1.1 var(--display); letter-spacing: .1em; color: var(--gold); text-shadow: 0 2px 0 #000; text-align: center; }
+  #joinTag b { display: block; font: 400 46px/1 var(--display); letter-spacing: .12em; margin-right: -.12em; color: #fff; text-shadow: 0 3px 0 #000; }
+
+  /* the puzzle board: a blue frame full of green tiles; a letter is a white tile */
+  #frame { position: absolute; left: 210px; top: 24px; width: 1500px; height: 528px; box-sizing: border-box; padding: 20px 26px; border-radius: 18px; background: linear-gradient(#1c3196, var(--frame)); box-shadow: 0 0 0 6px #0b1450, 0 0 0 10px #4a6bff, 0 0 0 14px #0b1450, 0 30px 70px #000c, 0 0 90px #4a6bff55; }
+  #frame::before, #frame::after { content: ""; position: absolute; top: 8px; bottom: 8px; width: 8px; border-radius: 4px; background: repeating-linear-gradient(#fff 0 10px, #fff0 10px 26px); opacity: .55; animation: chase 1.2s linear infinite; }
+  #frame::before { left: 8px; } #frame::after { right: 8px; }
+  @keyframes chase { to { background-position: 0 26px; } }
+  #board { display: grid; width: 100%; height: 100%; grid-template-columns: repeat(14, 1fr); grid-template-rows: repeat(4, 1fr); gap: 8px; perspective: 900px; }
+  .tile { position: relative; border-radius: 4px; background: linear-gradient(#35b98a, var(--tile) 50%, #208a66); box-shadow: inset 0 0 0 2px #0003, inset 0 -6px 12px #0003; display: flex; align-items: center; justify-content: center; font: 800 84px/1 var(--letter); color: #111; transition: background .25s, box-shadow .25s; }
+  .tile.x { background: transparent; box-shadow: none; }
+  .tile.w { background: linear-gradient(#ffffff, #eef0f6); box-shadow: inset 0 0 0 2px #0002, inset 0 -8px 10px #0001, 0 0 18px #fff4; }
+  .tile.lit { background: linear-gradient(#8fd8ff, var(--lit)); box-shadow: 0 0 0 3px #fff, 0 0 40px #48b6ff, inset 0 0 20px #fff8; }
+  .tile.flip { animation: flip .42s ease-out; }
+  @keyframes flip { 0% { transform: rotateY(0); } 45% { transform: rotateY(90deg); } 100% { transform: rotateY(0); } }
+  .tile.pop { animation: tPop .35s cubic-bezier(.3, 1.4, .5, 1) backwards; }
+  @keyframes tPop { from { transform: scale(.4); opacity: 0; } }
+  #frame.won { animation: won 1.6s ease-out; }
+  @keyframes won { 0%, 50% { box-shadow: 0 0 0 6px #0b1450, 0 0 0 10px #ffcc33, 0 0 0 14px #0b1450, 0 0 140px #ffcc33; } 100% { } }
+  #cat { position: absolute; left: 50%; top: 568px; transform: translateX(-50%); min-width: 560px; max-width: 1200px; height: 60px; padding: 0 50px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font: 400 44px/1 var(--display); letter-spacing: .08em; color: #fff; background: linear-gradient(#2c4ae0, #172fa8); border-radius: 999px; box-shadow: 0 0 0 4px #0b1450, 0 0 0 7px #4a6bff, 0 10px 24px #0009; white-space: nowrap; padding-top: 4px; }
+  #cat.new { animation: popIn .4s cubic-bezier(.3, 1.4, .5, 1); }
+  #cat:empty { display: none; }
+
+  /* used letters */
+  #used { position: absolute; left: 40px; top: 652px; width: 880px; display: flex; justify-content: space-between; }
+  #used i { font: 400 34px/1 var(--display); font-style: normal; width: 31px; text-align: center; color: #fff; text-shadow: 0 2px 0 #000; transition: opacity .3s, color .3s; }
+  #used i.v { color: var(--gold); }
+  #used i.done { opacity: .16; }
+  #used i.now { animation: usedNow .6s ease-out; }
+  @keyframes usedNow { 0%, 40% { transform: scale(1.8); opacity: 1; color: #fff; } }
+
+  /* player plates */
+  #plates { position: absolute; left: 40px; top: 708px; width: 880px; height: 352px; display: grid; gap: 16px; transition: left .6s cubic-bezier(.3, .9, .3, 1), width .6s cubic-bezier(.3, .9, .3, 1); }
+  .plate { position: relative; border-radius: 16px; background: linear-gradient(var(--c1), var(--c2)); box-shadow: 0 0 0 4px #120538, 0 12px 26px #0009, inset 0 2px 0 #ffffff55; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 10px; box-sizing: border-box; min-width: 0; transition: transform .3s, box-shadow .3s, opacity .3s; }
+  .plate .nm { font: 400 34px/1 var(--display); letter-spacing: .05em; color: #fff; text-shadow: 0 3px 0 #0007; white-space: nowrap; overflow: hidden; max-width: 100%; }
+  .plate .bk { margin-top: 8px; min-width: 80%; text-align: center; font: 800 54px/1 var(--letter); color: #111; background: #fff; border-radius: 10px; padding: 8px 10px 6px; box-shadow: inset 0 -4px 0 #0002; white-space: nowrap; }
+  .plate .tt { margin-top: 8px; font: 700 22px/1 var(--text); letter-spacing: .06em; color: #ffffffdd; white-space: nowrap; }
+  .plate .tt b { color: #fff; }
+  #plates.many .plate .nm { font-size: 28px; }
+  #plates.many .plate .bk { font-size: 38px; padding: 6px 8px 4px; margin-top: 6px; }
+  #plates.many .plate .tt { font-size: 19px; margin-top: 6px; }
+  .plate.on { transform: translateY(-10px) scale(1.04); box-shadow: 0 0 0 4px #120538, 0 0 0 9px #fff, 0 0 50px 8px #ffffffaa; z-index: 2; }
+  .plate.on::before { content: "UP"; position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font: 400 18px/1 var(--display); letter-spacing: .16em; padding: 6px 14px 4px; border-radius: 999px; background: var(--gold); color: #2a1800; box-shadow: 0 2px 0 #8a5200; }
+  .plate.buzz::before { content: "BUZZED"; }
+  .plate.out { opacity: .4; filter: grayscale(.6); }
+  .plate.off .nm { opacity: .6; }
+  .plate.hitfx { animation: hitfx .8s ease-out; }
+  @keyframes hitfx { 30% { box-shadow: 0 0 0 4px #120538, 0 0 0 10px #47e08f, 0 0 60px #47e08f; } }
+  .plate.bkfx { animation: bkfx 1.1s ease-out; }
+  @keyframes bkfx { 15%, 45% { background: #111; box-shadow: 0 0 0 4px #000, 0 0 0 10px var(--red), 0 0 60px var(--red); } }
+  .plate .delta { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); font: 400 50px/1 var(--display); color: #47e08f; text-shadow: 0 3px 0 #000; pointer-events: none; animation: deltaUp 1.4s ease-out forwards; white-space: nowrap; }
+  .plate .delta.neg { color: #ff6a60; }
+  @keyframes deltaUp { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -90px); } }
+
+  /* what's happening, above the wheel */
+  #status { position: absolute; left: 960px; top: 640px; width: 920px; transition: left .6s cubic-bezier(.3, .9, .3, 1); height: 76px; box-sizing: border-box; padding: 0 30px; display: flex; align-items: center; justify-content: center; gap: 22px; border-radius: 999px; background: #120538e6; box-shadow: 0 0 0 4px #ffcc33, 0 12px 30px #000a; z-index: 4; overflow: hidden; }
+  #status b { font: 400 52px/1 var(--display); letter-spacing: .04em; color: var(--gold); white-space: nowrap; padding-top: 4px; flex: none; }
+  #status span { font: 400 32px/1.05 var(--display); letter-spacing: .06em; color: #fff; white-space: nowrap; padding-top: 3px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  #status.new { animation: statIn .35s cubic-bezier(.3, 1.4, .5, 1); }
+  @keyframes statIn { from { transform: scale(.85); opacity: .3; } }
+  #status.bad { box-shadow: 0 0 0 4px var(--red), 0 12px 30px #000a, 0 0 50px #e8352b88; }
+  #status.bad b { color: #ff7a70; }
+  #status.good { box-shadow: 0 0 0 4px #47e08f, 0 12px 30px #000a, 0 0 50px #47e08f88; }
+  #status.good b { color: #7dffb8; }
+  #clock { position: absolute; left: 0; bottom: 0; height: 7px; background: #fff; border-radius: 4px; transform-origin: left; width: 100%; display: none; }
+  #clock.on { display: block; }
+  #clock.hot { background: #ff6a60; }
+
+  /* the wheel: mostly below the screen, rising to the middle for a spin */
+  #dim { position: absolute; inset: 0; background: #07021acc; opacity: 0; pointer-events: none; transition: opacity .5s; z-index: 5; }
+  #dim.on { opacity: 1; }
+  #wheelBox { position: absolute; left: 920px; top: 736px; width: 1040px; height: 1040px; z-index: 6; transition: transform .7s cubic-bezier(.3, .9, .3, 1); }
+  #wheelBox.big { transform: translate(-480px, -690px) scale(.96); }
+  #wheel { position: absolute; inset: 0; will-change: transform; }
+  #wheel svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 20px 40px #000c); }
+  #pointer { position: absolute; left: 50%; top: -30px; width: 0; height: 0; margin-left: -30px; border-left: 30px solid transparent; border-right: 30px solid transparent; border-top: 62px solid #fff; z-index: 2; filter: drop-shadow(0 4px 0 #120538) drop-shadow(0 6px 10px #000a); }
+  #pointer.tick { animation: flap .08s ease-out; }
+  @keyframes flap { 50% { transform: rotate(-14deg); } }
+  #spinName { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 400 40px/1 var(--display); letter-spacing: .06em; color: #fff; text-shadow: 0 3px 0 #000; white-space: nowrap; display: none; z-index: 3; }
+  #wheelBox.big #spinName { display: none; }
+
+  /* ---- overlays ---- */
+  #banner { position: absolute; left: 0; right: 0; top: 200px; display: none; justify-content: center; z-index: 21; pointer-events: none; }
+  #banner.on { display: flex; }
+  #banner.out div { animation: bannerOut .22s ease-in forwards; }
+  @keyframes bannerIn { from { transform: scale(.3) rotate(-4deg); opacity: 0; } }
+  @keyframes bannerOut { to { transform: scale(.85) translateY(-30px); opacity: 0; } }
+  #banner div { font: 400 110px/1.05 var(--display); letter-spacing: .03em; padding: 34px 80px 26px; text-align: center; color: #2a1800; background: linear-gradient(#ffe27a, #f2b01e); border-radius: 26px; box-shadow: 0 0 0 6px #120538, 0 0 0 10px #fff, 0 30px 80px #000c; animation: bannerIn .32s cubic-bezier(.2, 1.4, .4, 1); max-width: 1500px; }
+  #banner div small { display: block; font-size: 46px; letter-spacing: .06em; margin-top: 6px; }
+  #banner.red div { background: linear-gradient(#2a2a2a, #000); color: #fff; box-shadow: 0 0 0 6px #120538, 0 0 0 10px var(--red), 0 30px 80px #000c, 0 0 100px #e8352b99; }
+  #banner.green div { background: linear-gradient(#7dffb8, #2bbd6e); color: #06301f; }
+  #winner { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: radial-gradient(ellipse 90% 70% at 50% 30%, #4b20b8 0%, #2a0f7a 40%, #13063f 75%, #07021a 100%); z-index: 15; text-align: center; }
+  #winner.on { display: flex; animation: fadeIn .5s ease-out; }
+  #winner h2 { font: 400 64px var(--display); margin: 0; letter-spacing: .05em; animation: riseIn .5s ease-out .3s backwards; }
+  #winner h1 { font: 400 180px/1.05 var(--display); margin: 0; color: var(--gold); text-shadow: 0 4px 0 #c98a06, 0 8px 0 #6b3d00, 0 0 80px #ffcc3366; width: 1760px; white-space: nowrap; overflow: hidden; animation: winIn .8s cubic-bezier(.2, 1.4, .4, 1) .7s backwards; }
+  @keyframes winIn { from { opacity: 0; transform: scale(.2) rotate(-6deg); } }
+  #winScore { animation: riseIn .5s ease-out 1.5s backwards; }
+  #winAll { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; max-width: 1700px; animation: riseIn .5s ease-out 1.9s backwards; }
+  #winAll div { font: 400 34px var(--display); letter-spacing: .04em; padding: 10px 24px 8px; border-radius: 999px; background: linear-gradient(var(--c1), var(--c2)); box-shadow: 0 0 0 3px #120538; }
+  #winAll div b { font-weight: 400; color: #fff; margin-left: 14px; opacity: .9; }
+  #winAwards { display: flex; gap: 28px; justify-content: center; margin-top: 6px; }
+  #winAwards:empty { display: none; }
+  #winAwards .aw { width: 400px; padding: 18px 24px 16px; box-sizing: border-box; border-radius: 20px; text-align: center; background: linear-gradient(#3b1aa3, #26107a); box-shadow: 0 0 0 4px #ffcc33, 0 0 0 8px #120538, 0 16px 40px #000a; animation: awIn .6s cubic-bezier(.2, 1.4, .4, 1) 2.4s backwards; }
+  #winAwards .aw:nth-child(2) { animation-delay: 2.75s; } #winAwards .aw:nth-child(3) { animation-delay: 3.1s; } #winAwards .aw:nth-child(4) { animation-delay: 3.45s; }
+  @keyframes awIn { from { opacity: 0; transform: translateY(60px) scale(.7); } }
+  #winAwards small { display: block; font: 400 26px/1.1 var(--display); letter-spacing: .1em; color: var(--gold); }
+  #winAwards b { display: block; font: 400 54px/1.15 var(--display); letter-spacing: .03em; white-space: nowrap; overflow: hidden; padding-top: 4px; }
+  #winAwards i { display: block; margin-top: 3px; font: 700 21px/1.2 var(--text); font-style: normal; letter-spacing: .05em; color: #c9bdf2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #winAwards .aw.bankrupt { box-shadow: 0 0 0 4px var(--red), 0 0 0 8px #120538, 0 16px 40px #000a; }
+  #winAwards .aw.bankrupt small { color: #ff8a80; }
+  #winner p { font-size: 34px; margin: 0; color: #e6dcff; animation: fadeIn .6s ease-out 3.8s backwards; }
+  .confetti { position: absolute; top: -40px; width: 18px; height: 30px; animation: fall linear infinite; z-index: 16; pointer-events: none; border-radius: 3px; }
+  .confetti.once { animation-iteration-count: 1; z-index: 22; }
+  @keyframes fall { to { transform: translateY(1200px) rotate(720deg); } }
+  #intro { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 19; pointer-events: none; }
+  #intro.on { display: flex; animation: introDim 2.6s ease-in-out forwards; }
+  @keyframes introDim { 0% { background: #07021a00; } 12%, 84% { background: #07021acc; } 100% { background: #07021a00; } }
+  #intro .band { width: 100%; padding: 46px 0 38px; text-align: center; overflow: hidden; background: linear-gradient(#6a3be8, #3a1a8f); box-shadow: 0 0 0 8px #120538, 0 0 0 12px #ffcc33, 0 0 120px #8a5cff88; animation: bandSweep 2.6s cubic-bezier(.2, .9, .3, 1) forwards; }
+  @keyframes bandSweep { 0% { transform: scaleY(0); opacity: 0; } 12% { transform: scaleY(1); opacity: 1; } 84% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(0); opacity: 0; } }
+  #intro small { display: block; font: 400 44px/1 var(--display); letter-spacing: .3em; margin-right: -.3em; color: #e6dcff; animation: introSide 2.6s cubic-bezier(.2, .9, .3, 1) forwards; }
+  #intro b { display: block; font: 400 220px/1.02 var(--display); letter-spacing: .04em; color: #fff; text-shadow: 0 8px 0 #c98a06, 0 14px 0 #6b3d00, 0 0 60px #ffcc3366; white-space: nowrap; animation: introMain 2.6s cubic-bezier(.2, .9, .3, 1) forwards; }
+  #intro span { display: block; font: 400 66px/1.1 var(--display); letter-spacing: .08em; color: var(--gold); text-shadow: 0 5px 0 #000; animation: introSub 2.6s cubic-bezier(.2, .9, .3, 1) forwards; }
+  @keyframes introMain { 0%, 8% { transform: translateX(-1900px) skewX(-18deg); } 24% { transform: translateX(30px) skewX(0); } 30%, 80% { transform: none; } 100% { transform: translateX(1900px) skewX(-18deg); } }
+  @keyframes introSide { 0%, 16% { opacity: 0; transform: translateY(-30px); } 30%, 80% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; } }
+  @keyframes introSub { 0%, 26% { opacity: 0; transform: scale(2); } 40% { opacity: 1; transform: scale(.94); } 46%, 80% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; } }
+  #tools { position: absolute; right: 24px; bottom: 16px; display: flex; gap: 10px; z-index: 30; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  #tools.show, #tools:focus-within { opacity: 1; pointer-events: auto; }
+  #tools .chip { font-size: 18px; padding: 7px 16px; }
+  #offline { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: #7a1512; color: #fff; font: 700 24px var(--text); padding: 8px 24px; border-radius: 999px; z-index: 40; display: none; }
+  #offline.on { display: block; animation: fadeIn .3s; }
+  #soundTip { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); background: #2a1180; color: #fff; font: 700 26px var(--text); padding: 10px 30px; border-radius: 999px; z-index: 40; display: none; box-shadow: 0 0 0 3px var(--gold), 0 10px 30px #000a; white-space: nowrap; }
+  #soundTip.on { display: block; animation: fadeIn .3s; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+
+  <section class="screen on" id="start">
+    <div class="mid">
+      <div class="logo"><div class="whl" data-logo></div><b data-title></b></div>
+      <p>Open this page on the computer plugged into your TV.<br>Everyone else joins from their phone.</p>
+      <div class="row">
+        <button class="btn" id="btnCreate">Start a new game</button>
+        <button class="btn alt" id="btnResume" style="display:none"></button>
+      </div>
+      <p id="startMsg"></p>
+    </div>
+    <div id="ver"></div>
+  </section>
+
+  <section class="screen" id="lobby">
+    <div class="head"><div class="logo small"><div class="whl" data-logo></div><b data-title></b></div></div>
+    <div class="join box">
+      <h3>Scan to join</h3>
+      <img class="qrbig" id="qr" alt="QR code to join">
+      <div class="or">or go to <b id="joinUrl"></b> and enter</div>
+      <div class="code" id="codeBig"></div>
+    </div>
+    <div class="pods box"><h4 id="podHead">PLAYERS</h4><ul id="podList"></ul></div>
+    <div class="hostline box" id="hostLine"></div>
+    <div class="foot">
+      <div class="grow" id="lobbyNote"></div>
+      <button class="chip" id="btnPuzzles">My puzzles</button>
+    </div>
+  </section>
+
+  <section class="screen" id="game">
+    <div id="roundTag"></div>
+    <div id="frame"><div id="board"></div></div>
+    <div id="cat"></div>
+    <div id="used"></div>
+    <div id="plates"></div>
+    <div id="status"><b></b><span></span><div id="clock"></div></div>
+    <div id="dim"></div>
+    <div id="wheelBox"><div id="pointer"></div><div id="wheel"></div></div>
+  </section>
+
+  <div id="winner"><h2 id="winSub"></h2><h1 id="winName"></h1><h2 id="winScore"></h2><div id="winAll"></div><div id="winAwards"></div><p id="winNext"></p></div>
+  <div id="joinTag"><img id="jtQr" alt="QR code to join this game"><small>JOIN</small><b id="jtCode"></b></div>
+  <div id="intro"><div class="band"><small>GET READY</small><b></b><span></span></div></div>
+  <div id="banner"><div></div></div>
+  <div id="offline">Reconnecting…</div>
+  <div id="soundTip">The game just updated itself. Click or press any key to turn the sound back on.</div>
+  <div id="tools">
+    <button class="chip" id="btnSound">Sound: on</button>
+    <button class="chip" id="btnFull">Full screen</button>
+    <button class="chip" id="btnQuit">New room</button>
+  </div>
+</div>
+
+<script src="/common.js"></script>
+<script src="/board.js"></script>
+<script src="/editor.js"></script>
+<script>
+(function () {
+  'use strict';
+  var F = window.Game, $ = F.$, esc = F.esc, sfx = F.sfx, money = F.money;
+  var stage = $('#stage');
+  var room = F.store.get('whl.tv', null);        // { code, token }
+  var backup = F.store.get('whl.backup', null);  // { code, blob, got }: the server's sealed copy of this room
+  var triedRestore = false, downAt = 0;
+  var waitTimer = null, expecting = false;
+  function stopWaiting() { clearTimeout(waitTimer); waitTimer = null; $('#offline').textContent = 'Reconnecting…'; }
+  var S = null, lastSeq = null, hello = null, conn = null, admin = false;
+  var urlCode = (new URLSearchParams(location.search).get('code') || '').toUpperCase();
+  // Each player keeps a color for the whole game, like the show's red, yellow and blue.
+  var COLORS = [['#ff5a4e', '#c4231a'], ['#ffd23f', '#d69a00'], ['#3d8bff', '#1a4fc4'], ['#3fd47a', '#1b9450'], ['#b26bff', '#7a2fd6'], ['#ff9a3d', '#d0610c'], ['#ff6fb5', '#cc2f7f'], ['#2fd6d0', '#11908b']];
+  function colorOf(i) { return COLORS[i % COLORS.length]; }
+
+  document.querySelectorAll('[data-title]').forEach(function (n) { n.textContent = F.TITLE; });
+  document.querySelectorAll('[data-logo]').forEach(function (n) { n.innerHTML = F.wheelSvg([2500, 600, 700, 600, 650, 500, 700, 'BANKRUPT', 600, 550, 500, 900, 'LOSE A TURN', 650, 700, 800, 500, 650, 'BANKRUPT', 500, 900, 550, 600, 800]); });
+  document.title = F.TITLE + ' — Game board';
+  $('#ver').textContent = 'VERSION ' + F.VERSION;
+
+  function scale() { stage.style.setProperty('--s', Math.min(innerWidth / 1920, innerHeight / 1080)); }
+  addEventListener('resize', scale); scale();
+  F.stayAwake();
+  F.pressFx();
+
+  // The 56 tiles, made once.
+  (function () {
+    var h = '';
+    for (var i = 0; i < 56; i++) { var r = Math.floor(i / 14), c = i % 14; h += '<div class="tile' + ((r === 0 || r === 3) && (c === 0 || c === 13) ? ' x' : '') + '"></div>'; }
+    $('#board').innerHTML = h;
+    $('#used').innerHTML = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function (L) { return '<i data-l="' + L + '" class="' + ('AEIOU'.indexOf(L) >= 0 ? 'v' : '') + '">' + L + '</i>'; }).join('');
+  })();
+  var tiles = Array.prototype.slice.call(document.querySelectorAll('#board .tile'));
+
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(function (n) { n.classList.toggle('on', n.id === id); });
+    var tag = $('#joinTag'), playing = id === 'game' && !!S;
+    tag.classList.toggle('on', playing);
+    if (playing) {
+      var src = '/qr.svg?u=' + encodeURIComponent(location.origin + '/?code=' + S.code);
+      if ($('#jtQr').getAttribute('src') !== src) $('#jtQr').setAttribute('src', src);
+      $('#jtCode').textContent = S.code;
+    }
+  }
+
+  /* ------------------------------------------------------------ start */
+  if (urlCode) room = { code: urlCode, token: (room && room.code === urlCode) ? room.token : null };
+  if (room) { $('#btnResume').style.display = ''; $('#btnResume').textContent = 'Back to game ' + room.code; }
+  var busyTimer;
+  function busy(btn) {
+    document.querySelectorAll('#start .btn').forEach(function (b) { b.classList.toggle('busy', b === btn); });
+    clearTimeout(busyTimer);
+    $('#startMsg').classList.remove('calm');
+    if (btn) {
+      $('#startMsg').textContent = '';
+      busyTimer = setTimeout(function () { $('#startMsg').classList.add('calm'); $('#startMsg').textContent = 'Waking the game up. The first start of the night can take up to a minute.'; }, 3500);
+    }
+  }
+  function begin(h) {
+    sfx.unlock();
+    hello = h; lastSeq = null;
+    if (!conn) {
+      conn = F.connect({
+        hello: function () { return hello; },
+        onMessage: onMessage,
+        onStatus: function (ok) {
+          if (ok) triedRestore = false; else if (!downAt) downAt = Date.now();
+          $('#offline').classList.toggle('on', !ok && !!S);
+        }
+      });
+    } else conn.send(hello);
+  }
+  $('#btnCreate').onclick = function () { busy(this); begin({ t: 'create', used: F.store.get('whl.used', []), custom: F.savedCustom() }); };
+  $('#btnResume').onclick = function () { busy(this); begin({ t: 'watch', code: room.code, token: room.token }); };
+  var selfReload = false;
+  try { selfReload = sessionStorage.getItem('whl.auto') === '1'; sessionStorage.removeItem('whl.auto'); } catch (e) { /* private mode */ }
+  if (selfReload && room && (room.token || urlCode)) {
+    expecting = true;
+    $('#btnResume').click();
+    setTimeout(function () {
+      var c = sfx.ctx();
+      if (!c || c.state !== 'suspended') return;
+      var tip = $('#soundTip');
+      tip.classList.add('on');
+      var wake = function () { sfx.unlock(); tip.classList.remove('on'); removeEventListener('pointerdown', wake, true); removeEventListener('keydown', wake, true); };
+      addEventListener('pointerdown', wake, true); addEventListener('keydown', wake, true);
+    }, 1200);
+  }
+
+  function onMessage(m) {
+    if (m.t === 'watching') { admin = !!m.admin; triedRestore = false; downAt = 0; expecting = false; stopWaiting(); $('#offline').classList.remove('on'); }
+    else if (m.t === 'backup') { backup = { code: m.code, blob: m.blob, got: Date.now() }; F.store.set('whl.backup', backup); }
+    else if (m.t === 'created') {
+      admin = true;
+      room = { code: m.code, token: m.token };
+      F.store.set('whl.tv', room);
+      backup = null; F.store.del('whl.backup');
+      hello = { t: 'watch', code: room.code, token: room.token };
+    } else if (m.t === 'error') {
+      if (m.code === 'noroom') {
+        if (room && room.token && backup && backup.code === room.code && !triedRestore && conn) {
+          triedRestore = conn.send({ t: 'restore', code: room.code, token: room.token, blob: backup.blob, idle: downAt && backup.got ? Math.max(0, downAt - backup.got) : 0 });
+          return;
+        }
+        if (m.wait && room && (S || expecting) && !triedRestore) {
+          var pill = $('#offline');
+          pill.textContent = 'Hang tight. Bringing the game back…'; pill.classList.add('on');
+          clearTimeout(waitTimer);
+          waitTimer = setTimeout(function () { if (conn && hello) conn.send(hello); }, 2500);
+          return;
+        }
+        stopWaiting(); $('#offline').classList.remove('on'); expecting = false;
+        F.store.del('whl.tv'); F.store.del('whl.backup'); backup = null; room = null; S = null; hello = null;
+        busy(null); hideIntro(); hideWinner();
+        $('#btnResume').style.display = 'none';
+        $('#startMsg').textContent = m.msg;
+        show('start');
+      }
+    } else if (m.t === 'state') {
+      if (!S) busy(null);
+      var fresh = freshFx(m.s);
+      S = m.s;
+      if (S.used) F.store.set('whl.used', S.used);
+      render(fresh);
+    }
+  }
+
+  function freshFx(s) {
+    var list = s.fx || [];
+    if (lastSeq === null) { lastSeq = list.length ? list[list.length - 1].seq : 0; return []; }
+    var out = list.filter(function (e) { return e.seq > lastSeq; });
+    if (out.length) lastSeq = out[out.length - 1].seq;
+    return out;
+  }
+
+  /* ----------------------------------------------------------- render */
+  var bannerTimer = null, bannerOut = null, introTimer = null;
+  function banner(text, ms, kind, sub) {
+    var b = $('#banner');
+    clearTimeout(bannerTimer); clearTimeout(bannerOut);
+    b.firstElementChild.innerHTML = esc(text) + (sub ? '<small>' + esc(sub) + '</small>' : '');
+    b.classList.toggle('red', kind === 'red');
+    b.classList.toggle('green', kind === 'green');
+    b.classList.remove('on', 'out'); void b.offsetWidth; b.classList.add('on');
+    bannerTimer = setTimeout(function () {
+      b.classList.add('out');
+      bannerOut = setTimeout(function () { b.classList.remove('on', 'out'); }, 220);
+    }, (ms || 2200) - 220);
+  }
+  function intro(small, title, sub) {
+    sfx.round();
+    if (!F.motionOK()) { banner(title, 2200, null, sub); return; }
+    var el = $('#intro');
+    el.querySelector('small').textContent = small;
+    el.querySelector('b').textContent = title;
+    el.querySelector('span').textContent = sub || '';
+    el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
+    clearTimeout(introTimer);
+    introTimer = setTimeout(function () { el.classList.remove('on'); }, 2600);
+    setTimeout(function () { sfx.whoosh(); }, 150);
+  }
+  function hideIntro() { clearTimeout(introTimer); $('#intro').classList.remove('on'); }
+
+  function render(fresh) {
+    var s = S, has = {};
+    fresh.forEach(function (e) { has[e.type] = e; });
+    if (has.undo || has.lobby) { $('#banner').classList.remove('on', 'out'); hideIntro(); }
+    if (has.restored) banner('WE’RE BACK!', 2600, null, 'RIGHT WHERE WE LEFT OFF');
+    if (s.phase === 'lobby') { show('lobby'); hideIntro(); hideWinner(); renderLobby(s); confetti(false); boardKey = null; return; }
+    show('game');
+    renderGame(s, fresh, has);
+    if (s.phase === 'gameOver') winnerScreen(s, has); else hideWinner();
+  }
+
+  /* ------------------------------------------------------------ lobby */
+  var lobbySeen = null;
+  function renderLobby(s) {
+    $('#joinUrl').textContent = location.host;
+    if ($('#codeBig').textContent !== s.code) $('#codeBig').innerHTML = s.code.split('').map(function (c) { return '<span>' + esc(c) + '</span>'; }).join('');
+    var src = '/qr.svg?u=' + encodeURIComponent(location.origin + '/?code=' + s.code);
+    if ($('#qr').getAttribute('src') !== src) $('#qr').setAttribute('src', src);
+    $('#podHead').textContent = 'PLAYERS (' + s.players.length + ' OF ' + s.maxPlayers + ')';
+    F.morph($('#podList'), s.players.length
+      ? s.players.map(function (p, i) { return '<li data-key="p' + p.id + '" class="' + (p.on ? '' : 'off') + '"><i style="background:' + colorOf(i)[0] + '"></i>' + esc(p.name) + (s.captain === p.id ? ' <small style="font-size:20px;color:#ffcc33;letter-spacing:.08em">CAPTAIN</small>' : '') + '</li>'; }).join('')
+      : '<li class="none">Scan the code to join. Up to ' + s.maxPlayers + ' players.</li>');
+    var here = {}, isNew = false;
+    s.players.forEach(function (p) { here[p.id] = 1; if (lobbySeen && !lobbySeen[p.id]) isNew = true; });
+    if (isNew) sfx.join();
+    lobbySeen = here;
+    $('#hostLine').innerHTML = s.host
+      ? '<b>HOST</b><span>' + esc(s.host.name) + (s.host.on ? '' : ' (reconnecting)') + ' runs the game and can fix mistakes.</span>'
+      : '<b>NO HOST? NO PROBLEM</b><span>The game runs itself. ' + (s.players.length ? esc(s.players[0].name) + ' (the captain) starts it.' : 'The first player to join starts it.') + '</span>';
+    var st = s.settings;
+    var packs = s.packs.filter(function (p) { return st.packs.indexOf(p.id) >= 0; }).map(function (p) { return p.name; }).join(', ');
+    $('#lobbyNote').textContent = st.rounds + ' rounds, each with a toss-up' + (st.bonus ? ', then the bonus round' : '') + '. Puzzles: ' + (packs || 'Classic') +
+      (st.useCustom && s.customCount ? ', plus ' + F.plural(s.customCount, 'of your own', 'of your own') : '') + '. Letter clock: ' + (st.letterSecs ? st.letterSecs + ' seconds' : 'off') + '.';
+  }
+
+  /* ------------------------------------------------------------- game */
+  var boardKey = null, flipQueue = [], flipTimer = null, shown = [];
+  function setTile(i, v, how) {
+    var t = tiles[i]; if (!t || t.classList.contains('x')) return;
+    if (v === '') { t.className = 'tile'; t.textContent = ''; }
+    else if (v === '.') { t.className = 'tile w'; t.textContent = ''; }
+    else if (v === 'lit') { t.className = 'tile w lit'; t.textContent = ''; }
+    else {
+      t.className = 'tile w'; t.textContent = v;
+      if (how === 'flip' && F.motionOK()) { void t.offsetWidth; t.classList.add('flip'); }
+    }
+  }
+  function runQueue() {
+    clearTimeout(flipTimer); flipTimer = null;
+    if (!flipQueue.length) return;
+    var job = flipQueue.shift();
+    setTile(job.i, job.v, 'flip');
+    shown[job.i] = job.v;
+    if (job.sound) sfx.ding(); else sfx.reveal();
+    flipTimer = setTimeout(runQueue, job.gap);
+  }
+  function paintBoard(g, fresh) {
+    var key = g.board.map(function (v) { return v === '' ? 0 : 1; }).join('') + '|' + g.cat + '|' + g.kind + g.round;
+    var b = g.board, i;
+    if (key !== boardKey) {
+      boardKey = key; flipQueue = []; clearTimeout(flipTimer); shown = [];
+      $('#cat').textContent = g.cat || '';
+      $('#cat').classList.remove('new'); void $('#cat').offsetWidth; $('#cat').classList.add('new');
+      var n = 0;
+      for (i = 0; i < 56; i++) {
+        setTile(i, b[i]); shown[i] = b[i];
+        if (b[i] !== '' && F.motionOK()) { tiles[i].style.animationDelay = (n++ * 18) + 'ms'; tiles[i].classList.add('pop'); }
+      }
+      setTimeout(function () { tiles.forEach(function (t) { t.classList.remove('pop'); t.style.animationDelay = ''; }); }, 1400);
+      return;
+    }
+    // Letters that the latest move turned over light up blue, then flip one at a time.
+    var order = [], gap = 700, sound = true;
+    fresh.forEach(function (e) {
+      if (e.type === 'letter') { order = e.cells; gap = 700; sound = true; }
+      else if (e.type === 'bonusGiven' || e.type === 'bonusPicks') { order = e.cells; gap = 360; sound = true; }
+      else if (e.type === 'tossLetter') { order = [e.cell]; gap = 100; sound = false; }
+    });
+    var queued = {};
+    flipQueue.forEach(function (j) { queued[j.i] = 1; });
+    order.forEach(function (ci) {
+      if (b[ci] && b[ci] !== '.' && shown[ci] !== b[ci] && !queued[ci]) { setTile(ci, 'lit'); shown[ci] = 'lit'; flipQueue.push({ i: ci, v: b[ci], gap: gap, sound: sound }); queued[ci] = 1; }
+    });
+    // Anything else that changed (a solve shows the whole puzzle) turns over in a quick wave.
+    var wave = 0;
+    for (i = 0; i < 56; i++) {
+      if (queued[i] || shown[i] === b[i]) continue;
+      if (b[i] === '.' || b[i] === '') { setTile(i, b[i]); shown[i] = b[i]; continue; }
+      (function (ii, v, d) { setTimeout(function () { if (shown[ii] !== v) { setTile(ii, v, 'flip'); shown[ii] = v; } }, d); })(i, b[i], wave++ * 45);
+    }
+    if (flipQueue.length && !flipTimer) flipTimer = setTimeout(runQueue, 380);
+  }
+
+  var wheelKey = null, wheelBigTimer = null;
+  var spin = F.spinner($('#wheel'), function () {
+    sfx.peg();
+    var p = $('#pointer'); p.classList.remove('tick'); void p.offsetWidth; p.classList.add('tick');
+  });
+  function paintWheel(g, phase) {
+    var w = g.wheel, k = w.kind + '|' + w.wedges.join(',');
+    if (k !== wheelKey) { wheelKey = k; $('#wheel').innerHTML = F.wheelSvg(w.wedges, w.kind === 'bonus' ? 'bonus' : null); }
+    spin.sync(w);
+    var spinning = phase === 'spinning' || phase === 'bonusSpinning';
+    var box = $('#wheelBox');
+    if (spinning || phase === 'bonusSpin') { clearTimeout(wheelBigTimer); wheelBigTimer = null; box.classList.add('big'); $('#dim').classList.add('on'); }
+    else if (box.classList.contains('big') && !wheelBigTimer) {
+      wheelBigTimer = setTimeout(function () { wheelBigTimer = null; box.classList.remove('big'); $('#dim').classList.remove('on'); }, 1300);
+    }
+    box.style.visibility = g.kind === 'toss' ? 'hidden' : '';
+  }
+
+  function paintPlates(s, g, fresh) {
+    var n = s.players.length, el = $('#plates'), toss = g.kind === 'toss';
+    // In a round the plates sit bottom left, beside the wheel. For a toss-up the wheel is put
+    // away and the plates line up in one row across the middle.
+    var cols = toss ? Math.max(1, n) : Math.min(4, Math.max(1, n)), two = !toss && n > 4;
+    var width = toss ? Math.min(1840, n * 230) : 880;
+    el.classList.toggle('many', two || n > 5);
+    el.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    el.style.gridTemplateRows = two ? '1fr 1fr' : '1fr';
+    el.style.height = two ? '352px' : '240px';
+    el.style.top = two ? '708px' : '780px';
+    el.style.left = toss ? (1920 - width) / 2 + 'px' : '40px';
+    el.style.width = width + 'px';
+    var t = g.toss, bonus = g.bonus;
+    F.morph(el, s.players.map(function (p, i) {
+      var c = colorOf(i), cls = 'plate';
+      if (t && (g.phase === 'toss' || g.phase === 'tossAnswer')) {
+        if (t.buzzed === p.id) cls += ' on buzz';
+        if (t.out.indexOf(p.id) >= 0 || (t.only && t.only.indexOf(p.id) < 0)) cls += ' out';
+      } else if (bonus) {
+        if (bonus.pid === p.id) cls += ' on'; else cls += ' out';
+      } else if (g.kind === 'round' && g.control === p.id && s.phase !== 'solved') cls += ' on';
+      if (!p.on) cls += ' off';
+      var big = g.kind === 'round' ? money(g.bank[p.id] || 0) : money(g.total[p.id] || 0);
+      return '<div class="' + cls + '" data-key="pl' + p.id + '" style="--c1:' + c[0] + ';--c2:' + c[1] + '"><div class="nm">' + esc(p.name) + '</div>' +
+        '<div class="bk">' + big + '</div>' + (g.kind === 'round' ? '<div class="tt">TOTAL <b>' + money(g.total[p.id] || 0) + '</b></div>' : '<div class="tt">TOTAL</div>') + '</div>';
+    }).join(''));
+    el.querySelectorAll('.nm').forEach(function (n) { F.fit(n, 16); });
+    el.querySelectorAll('.bk').forEach(function (n) { F.fit(n, 18); });
+    // money flying in or out
+    fresh.forEach(function (e) {
+      var who = s.players.filter(function (p) { return p.name === e.name; })[0];
+      if (!who) return;
+      var plate = el.querySelector('[data-key="pl' + who.id + '"]'); if (!plate) return;
+      var amount = null, neg = false, fx = null;
+      if (e.type === 'letter' && e.won) { amount = '+' + money(e.won); fx = 'hitfx'; }
+      if (e.type === 'letter' && !e.value) { amount = '-$250'; neg = true; }
+      if (e.type === 'solved') { amount = '+' + money(e.won); fx = 'hitfx'; }
+      if (e.type === 'tossRight' && e.value) { amount = '+' + money(e.value); fx = 'hitfx'; }
+      if (e.type === 'bankrupt') fx = 'bkfx';
+      if (fx) { plate.classList.remove('hitfx', 'bkfx'); void plate.offsetWidth; plate.classList.add(fx); }
+      if (amount) { var d = document.createElement('div'); d.className = 'delta' + (neg ? ' neg' : ''); d.textContent = amount; plate.appendChild(d); setTimeout(function () { d.remove(); }, 1500); }
+    });
+  }
+
+  function paintUsed(g, fresh) {
+    var now = {};
+    fresh.forEach(function (e) { if (e.letter) now[e.letter] = 1; });
+    document.querySelectorAll('#used i').forEach(function (n) {
+      var L = n.dataset.l, done = g.called.indexOf(L) >= 0;
+      n.classList.toggle('done', done);
+      if (now[L]) { n.classList.remove('now'); void n.offsetWidth; n.classList.add('now'); }
+    });
+    $('#used').style.visibility = g.kind === 'toss' ? 'hidden' : '';
+  }
+
+  var statKey = null;
+  function status(big, small, kind) {
+    var el = $('#status'), k = big + '|' + small + '|' + kind;
+    if (k === statKey) return;
+    statKey = k;
+    el.querySelector('b').textContent = big || '';
+    el.querySelector('b').style.display = big ? '' : 'none';
+    el.querySelector('span').textContent = small || '';
+    el.className = kind || '';
+    void el.offsetWidth; el.classList.add('new');
+    F.fit(el.querySelector('span'), 16);
+  }
+  var clockRaf = null;
+  function paintClock(g) {
+    var el = $('#clock'), c = g.clock;
+    var show = c && ['call', 'solve', 'tossAnswer', 'bonusSolve', 'bonusPick'].indexOf(c.what) >= 0;
+    if (clockRaf) cancelAnimationFrame(clockRaf);
+    el.classList.toggle('on', !!show);
+    if (!show) return;
+    var ends = performance.now() + c.left, len = c.len, lastSec = null;
+    (function step(now) {
+      var left = Math.max(0, ends - now);
+      el.style.transform = 'scaleX(' + (left / len) + ')';
+      el.classList.toggle('hot', left < 3000);
+      if (c.what === 'bonusSolve') {
+        var sec = Math.ceil(left / 1000);
+        if (sec !== lastSec) { lastSec = sec; $('#status b').textContent = sec; if (sec <= 10 && sec > 0) sfx.tick(); }
+      }
+      if (left > 0) clockRaf = requestAnimationFrame(step);
+    })(performance.now());
+  }
+
+  function nameOf(s, id) { var p = s.players.filter(function (x) { return x.id === id; })[0]; return p ? p.name : ''; }
+  function lettersSaid(L, n) { return n === 1 ? 'ONE ' + L : n + ' ' + L + '’S'; }
+
+  function renderGame(s, fresh, has) {
+    var g = s.game, ph = s.phase, who = nameOf(s, g.control);
+    // the round tag
+    var tag = g.kind === 'toss' ? (g.toss && g.toss.only ? 'TIEBREAKER<b>TOSS-UP</b>' : 'ROUND ' + g.round + '<b>TOSS-UP</b>') : g.kind === 'bonus' ? 'THE<b>BONUS</b>' : 'ROUND<b>' + g.round + ' / ' + g.rounds + '</b>';
+    if ($('#roundTag').innerHTML !== tag) { $('#roundTag').innerHTML = tag; $('#roundTag').classList.toggle('long', g.kind !== 'round'); }
+    if (g.board) paintBoard(g, fresh);
+    if (g.kind === 'bonus' && !g.cat) { $('#cat').textContent = ''; }
+    paintWheel(g, ph);
+    paintPlates(s, g, fresh);
+    paintUsed(g, fresh);
+    paintClock(g);
+    $('#status').style.left = g.kind === 'toss' ? '500px' : '960px';
+
+    // big moments
+    if (has.toss) {
+      if (has.toss.tiebreak) intro('IT’S A TIE', 'TIEBREAKER', 'FIRST TO SOLVE GOES TO THE BONUS ROUND');
+      else intro('ROUND ' + has.toss.round, 'TOSS-UP', 'WORTH ' + money(has.toss.value) + ' · BUZZ IN ON YOUR PHONE');
+    }
+    if (has.round) intro('ROUND ' + has.round.round + ' OF ' + has.round.rounds, 'SPIN!', has.round.name + ' STARTS · TOP PRIZE ' + money(has.round.top));
+    if (has.bonus) intro('ONE MORE PUZZLE', 'BONUS ROUND', has.bonus.name + ' PLAYS FOR THE ENVELOPE');
+    if (has.tossLetter && !has.tossLetter.quiet) { /* the flip makes the sound */ }
+    if (has.buzz) sfx.buzz();
+    if (has.tossWrong || has.miss || has.wrongSolve || has.timeUp) sfx.wrong();
+    if (has.bankrupt) { sfx.bankrupt(); banner('BANKRUPT', 1800, 'red', has.bankrupt.name); }
+    if (has.loseTurn) { sfx.loseTurn(); banner('LOSE A TURN', 1700, 'red', has.loseTurn.name); }
+    if (has.tossRight || has.solved || has.bonusWin) { setTimeout(function () { sfx.solve(); }, 250); $('#frame').classList.remove('won'); void $('#frame').offsetWidth; $('#frame').classList.add('won'); burst(); }
+    if (has.bonusLose || has.tossNobody || has.nobody) sfx.lose();
+    if (has.skipped) banner(has.skipped.name + '’S PHONE DROPPED', 2000, null, 'ON TO THE NEXT PLAYER');
+    if (has.spin) sfx.whoosh();
+
+    // what's happening
+    var L = g.last, t = g.toss;
+    if (ph === 'toss') status(money(t.value || 0) === '$0' ? 'TIEBREAKER' : 'TOSS-UP ' + money(t.value), 'BUZZ IN ON YOUR PHONE WHEN YOU KNOW IT');
+    else if (ph === 'tossAnswer') status(nameOf(s, t.buzzed), 'IS TYPING AN ANSWER…');
+    else if (ph === 'tossWon') status(t.winner ? nameOf(s, t.winner) : 'NOBODY', t.winner ? (t.value ? 'SOLVED IT! +' + money(t.value) : 'SOLVED IT!') : 'GOT THAT ONE', t.winner ? 'good' : 'bad');
+    else if (ph === 'turn') status(who, !g.consLeft ? 'NO CONSONANTS LEFT · BUY A VOWEL OR SOLVE' : 'SPIN, BUY A VOWEL, OR SOLVE');
+    else if (ph === 'spinning') status(who, 'SPINS THE WHEEL…');
+    else if (ph === 'call') status(money(g.landed), who + ', CALL A CONSONANT');
+    else if (ph === 'lighting' && L) status(lettersSaid(L.letter, L.count), L.value ? '+' + money(L.won) + ' FOR ' + nameOf(s, L.pid) : nameOf(s, L.pid) + ' BOUGHT A VOWEL', 'good');
+    else if (ph === 'pause' && L) {
+      if (L.type === 'miss') status(L.again ? 'ALREADY CALLED' : 'NO ' + L.letter, nameOf(s, L.pid) + ' LOSES THE TURN', 'bad');
+      else if (L.type === 'bankrupt') status('BANKRUPT', nameOf(s, L.pid) + (L.lost ? ' LOSES ' + money(L.lost) : ''), 'bad');
+      else if (L.type === 'loseTurn') status('LOSE A TURN', nameOf(s, L.pid), 'bad');
+      else if (L.type === 'time') status('TIME’S UP', nameOf(s, L.pid) + ' LOSES THE TURN', 'bad');
+      else if (L.type === 'wrongSolve') status('NOT IT', (L.guess ? '“' + L.guess + '”' : '') , 'bad');
+      else status('', '');
+    }
+    else if (ph === 'solve') status(who, 'IS SOLVING…');
+    else if (ph === 'solved') status(g.solvedBy ? nameOf(s, g.solvedBy) : 'NOBODY', g.solvedBy ? 'SOLVED IT! +' + money(L && L.won) : 'SOLVED IT', g.solvedBy ? 'good' : 'bad');
+    else if (ph === 'bonusSpin') status(who, 'SPIN FOR YOUR ENVELOPE');
+    else if (ph === 'bonusSpinning') status(who, 'SPINS…');
+    else if (ph === 'bonusLighting') status(g.bonus.picks.length ? g.bonus.picks.join(' ') : 'R S T L N E', g.bonus.picks.length ? 'YOUR LETTERS' : 'ON THE HOUSE');
+    else if (ph === 'bonusPick') status(who, 'PICKS 3 CONSONANTS AND A VOWEL');
+    else if (ph === 'bonusSolve') status('10', who + ', SOLVE IT!' + (g.bonus.guesses.length ? ' · LAST TRY: ' + g.bonus.guesses[g.bonus.guesses.length - 1] : ''));
+    else if (ph === 'bonusDone') status(money(g.bonus.prize), g.bonus.solved ? who + ' WINS IT!' : 'WAS IN THE ENVELOPE', g.bonus.solved ? 'good' : 'bad');
+    else if (ph === 'gameOver') status('GAME OVER', '');
+    if (has.bonusWin) banner('YOU WIN ' + money(has.bonusWin.prize) + '!', 3200, 'green', has.bonusWin.name);
+    if (has.bonusLose) banner('IT WAS ' + money(has.bonusLose.prize), 2800, 'red', 'SO CLOSE, ' + has.bonusLose.name);
+    if (has.bonusWrong) sfx.wrong();
+  }
+
+  function burst() {
+    if (!F.motionOK()) return;
+    var cols = ['#ffcc33', '#e8352b', '#1f8be0', '#3bb54a', '#ef4f9a', '#fff'];
+    for (var i = 0; i < 60; i++) {
+      var c = document.createElement('div');
+      c.className = 'confetti once';
+      c.style.left = (210 + Math.random() * 1500) + 'px';
+      c.style.background = cols[i % cols.length];
+      c.style.animationDuration = (1.6 + Math.random() * 1.4) + 's';
+      c.style.animationDelay = (Math.random() * 0.4) + 's';
+      stage.appendChild(c);
+      (function (el) { setTimeout(function () { el.remove(); }, 3600); })(c);
+    }
+  }
+
+  /* --------------------------------------------------------- the end */
+  var winOn = false;
+  function winnerScreen(s, has) {
+    var g = s.game;
+    var names = (g.winner || []).map(function (id) { return nameOf(s, id); }).filter(Boolean);
+    $('#winSub').textContent = names.length > 1 ? 'IT’S A TIE!' : names.length ? 'AND THE WINNER IS' : 'GAME OVER';
+    $('#winName').textContent = names.length ? names.join(' & ') : 'NOBODY';
+    F.fit($('#winName'));
+    $('#winScore').textContent = names.length ? money(g.total[g.winner[0]] || 0) : '';
+    var ranked = s.players.map(function (p, i) { return { p: p, i: i }; }).sort(function (a, b) { return (g.total[b.p.id] || 0) - (g.total[a.p.id] || 0); });
+    $('#winAll').innerHTML = ranked.map(function (r) { var c = colorOf(r.i); return '<div style="--c1:' + c[0] + ';--c2:' + c[1] + '">' + esc(r.p.name) + '<b>' + money(g.total[r.p.id] || 0) + '</b></div>'; }).join('');
+    $('#winAwards').innerHTML = (g.awards || []).map(function (a) { return '<div class="aw ' + a.key + '"><small>' + esc(a.title) + '</small><b>' + esc(a.name) + '</b><i>' + esc(a.note) + '</i></div>'; }).join('');
+    document.querySelectorAll('#winAwards b').forEach(function (n) { F.fit(n); });
+    $('#winNext').textContent = s.host ? 'The host can start another game from their phone.' : 'The captain can start another game from their phone.';
+    if (!winOn) {
+      winOn = true;
+      $('#winner').classList.add('on');
+      if (has.win) { setTimeout(function () { sfx.win(); confetti(true); }, 700); } else confetti(true);
+    }
+  }
+  function hideWinner() { winOn = false; $('#winner').classList.remove('on'); confetti(false); }
+  function confetti(on) {
+    document.querySelectorAll('.confetti:not(.once)').forEach(function (n) { n.remove(); });
+    if (!on || !F.motionOK()) return;
+    var cols = ['#ffcc33', '#e8352b', '#1f8be0', '#3bb54a', '#ef4f9a', '#fff'];
+    for (var i = 0; i < 70; i++) {
+      var c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 1920 + 'px';
+      c.style.background = cols[i % cols.length];
+      c.style.animationDuration = (3 + Math.random() * 4) + 's';
+      c.style.animationDelay = (-Math.random() * 6) + 's';
+      stage.appendChild(c);
+    }
+  }
+
+  /* ------------------------------------------------------------ tools */
+  $('#btnFull').onclick = function () {
+    if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+  };
+  $('#btnSound').onclick = function () {
+    sfx.mute(!sfx.isMuted());
+    this.textContent = 'Sound: ' + (sfx.isMuted() ? 'off' : 'on');
+  };
+  $('#btnQuit').onclick = function () {
+    if (!confirm('Close this room and start a fresh one? Everyone will need to join again.')) return;
+    F.store.del('whl.tv'); F.store.del('whl.backup'); room = null; backup = null; S = null;
+    if (conn) { conn.stop(); conn = null; }
+    hideWinner(); hideIntro(); show('start'); $('#btnResume').style.display = 'none';
+  };
+  $('#btnPuzzles').onclick = function () {
+    F.openEditor({ custom: F.savedCustom(), onChange: function (c) { if (conn) conn.send({ t: 'custom', custom: c }); } });
+  };
+  var toolTimer = null;
+  addEventListener('mousemove', function () {
+    $('#tools').classList.add('show');
+    clearTimeout(toolTimer);
+    toolTimer = setTimeout(function () { $('#tools').classList.remove('show'); }, 3000);
+  });
+  addEventListener('keydown', function (e) {
+    if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.key === 'f' || e.key === 'F') $('#btnFull').click();
+    if (e.key === 'm' || e.key === 'M') $('#btnSound').click();
+  });
+})();
+</script>
+</body>
+</html>

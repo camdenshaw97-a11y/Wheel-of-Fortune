@@ -6,7 +6,7 @@
   // Change this to rename the game everywhere.
   F.TITLE = 'FRIEND WHEEL';
   // Shown small on the start screens. Goes up with every change; CHANGELOG.md says what each one was.
-  F.VERSION = '1.0';
+  F.VERSION = '1.1';
 
   F.$ = function (sel, root) { return (root || document).querySelector(sel); };
   F.esc = function (s) {

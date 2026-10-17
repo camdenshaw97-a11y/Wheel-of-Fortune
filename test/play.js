@@ -247,6 +247,21 @@ async function main() {
   await wait(50);
   check('only a host can undo', tv.state.phase === 'toss');
 
+  // ---- joining after the game has started
+  host.send({ t: 'host', on: true });
+  check('a late arrival can take over as host mid-game', await host.until(s => s.me.isHost && s.phase !== 'lobby'));
+  host.send({ t: 'h', a: 'nobody' });
+  check('the new host can use the host tools', await tv.until(s => s.phase === 'tossWon'));
+  host.send({ t: 'play', on: true });
+  check('the host can switch to playing mid-game, at $0', await tv.until(s => s.players.length === 4 && !s.host && s.game.total[s.players[3].id] === 0));
+  check('and gets a turn when it comes round', await tv.until(s => s.phase === 'turn' && s.game.bank[s.players[3].id] === 0, 6000));
+  const late = new Screen('late'); await late.ready;
+  late.send({ t: 'join', code, name: 'Dee' });
+  await late.until((s, l) => l.joined && s);
+  late.send({ t: 'play', on: true });
+  check('a brand-new phone can jump in mid-game', await tv.until(s => s.players.length === 5 && s.fx.some(e => e.type === 'joined' && e.name === 'DEE')));
+  late.close();
+
   for (const s of [tv, host, ...ps]) s.close();
   server.close();
   console.log(failures ? '\n' + failures + ' FAILED' : '\nall good');

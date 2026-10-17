@@ -1166,11 +1166,15 @@ function onMessage(ws, m) {
   const g = room.game;
 
   switch (m.t) {
-    case 'play':                                   // join the game as a player (or step out, between games)
+    case 'play':                                   // join the game as a player (any time), or step out between games
       if (m.on) {
-        if (g) break;
+        if (!room.order.includes(p.id) && room.order.length >= MAX_PLAYERS) { send(ws, { t: 'error', msg: 'All ' + MAX_PLAYERS + ' spots are taken.' }); break; }
         if (p.isHost) { p.isHost = false; room.hostId = null; }
-        if (!room.order.includes(p.id)) { if (room.order.length >= MAX_PLAYERS) { send(ws, { t: 'error', msg: 'All ' + MAX_PLAYERS + ' spots are taken.' }); break; } room.order.push(p.id); }
+        if (!room.order.includes(p.id)) {
+          room.order.push(p.id);
+          // Joining a game that's already going: start at $0 and take a turn when it comes round.
+          if (g) { g.total[p.id] = 0; g.bank[p.id] = 0; fx(room, 'joined', { name: p.name }); }
+        }
       } else if (!g) {
         const i = room.order.indexOf(p.id); if (i >= 0) room.order.splice(i, 1);
       }

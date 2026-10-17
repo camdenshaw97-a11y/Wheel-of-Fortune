@@ -15,6 +15,9 @@ optional.
    playing, they tap **Be the host**. With no host, the first player to join is the captain and
    starts the game.
 4. The host (or captain) picks the setup and taps **Start the game**.
+5. Late arrivals can still join after the game starts: they get **Jump in and play** (starting
+   at $0) or, if nobody is hosting, **Be the host**. A host can switch to playing any time from
+   the host menu (**More…** > **Join as a player**).
 
 ## Rules it follows
 

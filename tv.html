@@ -667,6 +667,7 @@
     if (has.bonusLose || has.tossNobody || has.nobody) sfx.lose();
     if (has.skipped) banner(has.skipped.name + '’S PHONE DROPPED', 2000, null, 'ON TO THE NEXT PLAYER');
     if (has.spin) sfx.whoosh();
+    if (has.joined) { sfx.join(); banner(has.joined.name + ' JUMPS IN!', 1800); }
 
     // what's happening
     var L = g.last, t = g.toss;

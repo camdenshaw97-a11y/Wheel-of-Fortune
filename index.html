@@ -98,10 +98,11 @@
   .scores div.up { box-shadow: 0 0 0 2px #fff, 0 0 16px #fffa; transform: translateY(-2px); }
   .scores div.out { opacity: .4; }
   .catline { text-align: center; font: 400 18px var(--display); letter-spacing: .1em; color: #fff; background: #172fa8; border-radius: 999px; padding: 5px 10px 3px; margin: 6px auto 0; width: fit-content; max-width: 100%; box-shadow: 0 0 0 2px #4a6bff; }
-  .used { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px 5px; margin: 8px 0 2px; font: 400 15px var(--display); letter-spacing: .02em; }
-  .used i { font-style: normal; color: #fff; }
+  .used { display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px; margin: 12px 0 4px; }
+  .used i { font: 800 clamp(18px, 5.6vw, 26px)/1 var(--letter); font-style: normal; color: #fff; text-align: center; padding: 5px 0 4px; border-radius: 6px; background: #ffffff14; }
+  .used i.v { background: #ffcc3322; }
   .used i.v { color: var(--gold); }
-  .used i.done { opacity: .18; }
+  .used i.done { opacity: .2; background: transparent; text-decoration: line-through; }
   .say { text-align: center; padding: 16px 6px 6px; }
   .say b { display: block; font: 400 38px/1.05 var(--display); letter-spacing: .04em; color: var(--gold); }
   .say span { display: block; font: 600 16px/1.4 var(--text); color: #e6dcff; margin-top: 6px; }
@@ -491,7 +492,12 @@
       (g.kind === 'round' ? money(me.bank || 0) + '<small>TOTAL ' + money(me.total || 0) + '</small>' : money(me.total || 0) + '<small>TOTAL</small>') + '</div></div>';
     h += scoresHtml(g);
     var main = '', L = g.last;
-    if (!me.playing) main = say('YOU’RE WATCHING', 'Join the next game from the lobby.');
+    if (!me.playing) {
+      var hostFree = !S.host || !S.host.on, full = S.players.length >= S.maxPlayers;
+      main = say('GAME IN PROGRESS', 'Jump in now, or run the game as the host.') +
+        '<div data-key="joinbtns">' + (full ? '' : '<button class="btn gold" data-a="joinplay">Jump in and play</button><p class="note">You start at $0 and get a turn when it comes round.</p>') +
+        (hostFree ? '<button class="btn" data-a="behost">Be the host</button><p class="note">The host sees the answer and can fix mistakes, but doesn’t play.</p>' : '<p class="note">' + esc(S.host.name) + ' is hosting.</p>') + '</div>';
+    }
     else if (ph === 'toss' || ph === 'tossAnswer') {
       var t = g.toss;
       if (ph === 'tossAnswer' && t.buzzed === me.id) main = say('SOLVE IT!', 'Type the whole puzzle. Spelling counts, but a typo in a long one is forgiven.') + clockBar() + solveBox('TYPE THE PUZZLE', 'Lock it in');
@@ -580,6 +586,7 @@
   }
 
   function bigMoments(has, g) {
+    if (has.joined && has.joined.name !== me.name) toast(has.joined.name + ' jumped in!');
     if (has.turn && g.control === me.id) { pop('turn', 'YOUR TURN', '', 1100); buzzPhone([60, 40, 60]); sfx.join(); }
     if (has.round && g.control === me.id) { pop('turn', 'YOU START', 'Round ' + g.round, 1400); buzzPhone([60, 40, 60]); }
     if (has.letter && has.letter.name === me.name && has.letter.won) { pop('good', '+' + money(has.letter.won), lettersSay(has.letter), 1100); buzzPhone(40); }
@@ -622,6 +629,8 @@
     }
     else if (a === 'lockPicks') send({ t: 'picks', letters: ui.picks });
     else if (a === 'again') H('lobby');
+    else if (a === 'joinplay') send({ t: 'play', on: true });
+    else if (a === 'behost') send({ t: 'host', on: true });
   });
   function submitGuess() {
     var si = $('#solveIn'); if (!si) return;
@@ -737,6 +746,7 @@
       else if (a === 'adj') H('adjust', { id: b.dataset.id, field: b.dataset.f, delta: Number(b.dataset.d) });
       else if (a === 'give') { H('giveTurn', { id: b.dataset.id }); closeMenu(); }
       else if (a === 'kick') { if (confirm('Remove ' + pname(b.dataset.id) + ' from the game?')) H('kick', { id: b.dataset.id }); }
+      else if (a === 'joinplay') { if (confirm('Stop hosting and join as a player?')) { send({ t: 'play', on: true }); closeMenu(); } }
       else if (a === 'endGame') { if (confirm('Skip to the final scores?')) { H('endGame'); closeMenu(); } }
       else if (a === 'lobby') { if (confirm('End this game and go back to the lobby? Scores are lost.')) { H('lobby'); closeMenu(); } }
     });
@@ -753,6 +763,7 @@
     }).join('') + '<p class="note">Round money moves by $250, totals by $1,000.</p></div>';
     if (g.kind === 'round') h += '<div class="card" data-key="m-give"><h3><span>GIVE THE TURN TO</span></h3><div class="who">' + S.players.map(function (p) { return '<span><button data-a="give" data-id="' + p.id + '" style="width:auto;border-radius:999px;padding:0 10px;height:28px;background:' + (g.control === p.id ? '#ffcc33;color:#2a1800' : '#5a2fd6') + '">' + esc(p.name) + '</button></span>'; }).join('') + '</div></div>';
     h += '<div class="card" data-key="m-players"><h3><span>REMOVE A PLAYER</span></h3><div class="who">' + S.players.map(function (p) { return '<span>' + esc(p.name) + '<button data-a="kick" data-id="' + p.id + '">×</button></span>'; }).join('') + '</div></div>';
+    if (S.players.length < S.maxPlayers) h += '<div class="card" data-key="m-play"><h3><span>WANT TO PLAY?</span></h3><p class="note" style="text-align:left;margin-top:0">Stop hosting and join the game at $0. The game keeps running on its own.</p><button class="btn gold" data-a="joinplay">Join as a player</button></div>';
     h += '<button class="btn" data-a="endGame">Skip to the final scores</button>';
     h += '<button class="btn red" data-a="lobby">End the game</button>';
     F.morph(root, h);

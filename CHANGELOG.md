@@ -6,6 +6,18 @@ glance which version a screen is running.
 
 Times are Pacific.
 
+## 1.1 · October 17, 2026
+
+**Fixes from the first play test**
+- **Bigger alphabet on the phones.** The used-letter alphabet under the board is now two rows of
+  big letter tiles (A to M, N to Z) instead of one line of small print. Vowels have a gold tint,
+  and letters already called are crossed out and faded.
+- **Join after the game has started.** Anyone who opens the game mid-game now gets two buttons:
+  **Jump in and play** (they start at $0 and take a turn when it comes round) and **Be the
+  host** (if nobody is hosting). The TV shows "NAME JUMPS IN!" when someone joins.
+- **The host can switch to playing mid-game**: Host menu (**More…**) > **Join as a player**.
+  The game keeps running on its own without a host.
+
 ## 1.0 · October 14, 2026
 
 **The first version**
